@@ -1613,6 +1613,37 @@ function createApi(language) {
 			result.valid = (result.errors.length === 0);
 			return result;
 		},
+		validateMultipleStripUnknown: function (data, schema, recursive) {
+			var result = this.validateMultiple(data, schema, recursive);
+			var ret = {};
+			if (result.valid == false) {
+				return result;
+			}
+			else {
+				while (true) {
+					var error = this.validateResult(data, schema, false, true);
+					if (error.valid == false && error.error && error.error.code == ErrorCodes.UNKNOWN_PROPERTY) {
+						var nestedProperties = error.error.dataPath.replace("/", "").split("/");
+						var len = nestedProperties.length;
+						var ptr = data;
+						nestedProperties.forEach(function (path, i) {
+							if (len - 1 == i) {
+								try {
+									delete ptr[path];
+								} catch (e) { }
+							} else {
+								ptr = ptr[path];
+							}
+						});
+						continue;
+					}
+					break;
+				}
+				ret = this.validateMultiple(data, schema, recursive);
+				ret.strippedData = data;
+				return ret;
+			}
+		},
 		addSchema: function () {
 			return globalContext.addSchema.apply(globalContext, arguments);
 		},
